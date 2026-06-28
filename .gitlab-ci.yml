@@ -1,0 +1,21 @@
+image: node:20
+
+stages:
+  - verify
+
+cache:
+  key:
+    files:
+      - package.json
+  paths:
+    - node_modules/
+
+verify:
+  stage: verify
+  variables:
+    DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+    JWT_SECRET: "ci-only-secret"
+  script:
+    - npm install
+    - npm run build
+    - npm run typecheck

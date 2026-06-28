@@ -1,0 +1,41 @@
+{
+  "name": "coaching-crm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "setup": "tsx scripts/setup-appwrite.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.10",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^2.4.3",
+    "chart.js": "^4.5.1",
+    "framer-motion": "^12.40.0",
+    "groq-sdk": "^0.15.0",
+    "jose": "^5.10.0",
+    "lucide-react": "^1.17.0",
+    "next": "^14.2.5",
+    "node-appwrite": "^14.2.0",
+    "nodemailer": "^9.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7",
+    "xlsx": "^0.18.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "dotenv": "^17.4.2",
+    "pg": "^8.22.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  }
+}

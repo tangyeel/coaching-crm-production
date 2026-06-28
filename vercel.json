@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/trigger-backup",
+      "schedule": "0 2 * * 0"
+    }
+  ]
+}
