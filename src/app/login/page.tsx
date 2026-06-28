@@ -84,101 +84,14 @@ export default function LoginPage() {
             <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--bdr)' }}>
               <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--t3)', marginBottom: 12 }}>Don&apos;t have an account?</p>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => setView('signup')}>Sign Up</button>
-                <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => setView('enroll')}>Enroll</button>
+                <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => router.push('/signup')}>Sign Up</button>
+                <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} onClick={() => router.push('/enroll')}>Enroll</button>
               </div>
             </div>
             <div style={{ marginTop: 12, textAlign: 'center' }}>
-              <button style={{ fontSize: 12, color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setView('invite')}>
+              <button style={{ fontSize: 12, color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => router.push('/signup/invite')}>
                 Have an invite code?
               </button>
-            </div>
-          </div>
-        )}
-
-        {view === 'signup' && (
-          <div className="auth-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setView('login')}><i className="fa-solid fa-arrow-left" style={{ marginRight: 6 }} />Back</button>
-            </div>
-            <h2 className="font-display" style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Register Institute</h2>
-            <p style={{ fontSize: 12, marginBottom: 24, color: 'var(--t3)' }}>Request onboarding</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label className="fl">Institute Name</label>
-                <input className="fi" placeholder="e.g. Apex Coaching Academy" />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label className="fl">Your Name</label><input className="fi" placeholder="Full name" /></div>
-                <div><label className="fl">Phone</label><input className="fi" placeholder="+91 ..." /></div>
-              </div>
-              <div>
-                <label className="fl">Email</label>
-                <input className="fi" type="email" placeholder="admin@institute.com" />
-              </div>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setView('login')}>Submit</button>
-            </div>
-          </div>
-        )}
-
-        {view === 'invite' && (
-          <div className="auth-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setView('login')}><i className="fa-solid fa-arrow-left" style={{ marginRight: 6 }} />Back</button>
-            </div>
-            <h2 className="font-display" style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Join with Invite</h2>
-            <p style={{ fontSize: 12, marginBottom: 24, color: 'var(--t3)' }}>Enter the invite code</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div><label className="fl">Invite Code</label><input className="fi" placeholder="INV-ABC123" /></div>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setView('invite2')}>Validate</button>
-            </div>
-          </div>
-        )}
-
-        {view === 'invite2' && (
-          <div className="auth-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setView('invite')}><i className="fa-solid fa-arrow-left" style={{ marginRight: 6 }} />Back</button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, background: 'var(--okd)', color: 'var(--ok)' }}>
-                <i className="fa-solid fa-check" />
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ok)' }}>Validated</span>
-            </div>
-            <h2 className="font-display" style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Create Account</h2>
-            <p style={{ fontSize: 12, marginBottom: 24, color: 'var(--t3)' }}>{role} profile</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label className="fl">Full Name</label><input className="fi" placeholder="Name" /></div>
-                <div><label className="fl">Phone</label><input className="fi" placeholder="+91 ..." /></div>
-              </div>
-              <div><label className="fl">Email</label><input className="fi" type="email" placeholder="you@email.com" /></div>
-              <div><label className="fl">Password</label><input className="fi" type="password" placeholder="Password" /></div>
-              <div><label className="fl">Guardian Name</label><input className="fi" placeholder="Father/Mother name" /></div>
-              <div><label className="fl">Guardian Phone</label><input className="fi" placeholder="+91 ..." /></div>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setView('login')}>Create</button>
-            </div>
-          </div>
-        )}
-
-        {view === 'enroll' && (
-          <div className="auth-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setView('login')}><i className="fa-solid fa-arrow-left" style={{ marginRight: 6 }} />Back</button>
-            </div>
-            <h2 className="font-display" style={{ fontWeight: 700, fontSize: 20, marginBottom: 4 }}>Public Enrollment</h2>
-            <p style={{ fontSize: 12, marginBottom: 24, color: 'var(--t3)' }}>Join a batch with join code</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div><label className="fl">Join Code</label><input className="fi" placeholder="JOIN-A1-X7K9" /></div>
-              <div><label className="fl">Student Name</label><input className="fi" placeholder="Full name" /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label className="fl">Email</label><input className="fi" type="email" placeholder="you@email.com" /></div>
-                <div><label className="fl">Phone</label><input className="fi" placeholder="+91 ..." /></div>
-              </div>
-              <div><label className="fl">Guardian Name</label><input className="fi" placeholder="Father/Mother" /></div>
-              <div><label className="fl">Guardian Phone</label><input className="fi" placeholder="+91 ..." /></div>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setView('login')}>Submit</button>
             </div>
           </div>
         )}
