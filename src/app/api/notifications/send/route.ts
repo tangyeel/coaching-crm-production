@@ -3,9 +3,37 @@ import { db } from '@/lib/db'
 import { auth, handle, json, HttpError } from '@/lib/api'
 import { decrypt } from '@/lib/encryption'
 
-export const POST = handle(async () => {
+export const GET = handle(async () => {
   const session = await auth(['INSTITUTE_ADMIN', 'TEACHER'])
   const instituteId = session.instituteId!
+
+  const { data: pending, error } = await db
+    .from('notification_queue')
+    .select('*')
+    .eq('institute_id', instituteId)
+    .eq('status', 'PENDING')
+    .order('created_at', { ascending: true })
+    .limit(100)
+
+  if (error) throw new HttpError(500, error.message)
+
+  const result = (pending ?? []).map(p => ({
+    ...p,
+    payload: JSON.parse(p.payload as string)
+  }))
+
+  return json(result)
+})
+
+export const POST = handle(async (req) => {
+  const session = await auth(['INSTITUTE_ADMIN', 'TEACHER'])
+  const instituteId = session.instituteId!
+
+  let targetId: string | undefined
+  try {
+    const body = await req.json()
+    targetId = body.id
+  } catch {}
 
   const { data: inst, error: instErr } = await db
     .from('institutes')
@@ -17,18 +45,22 @@ export const POST = handle(async () => {
   const decryptedToken = decrypt(inst.whatsapp_token)
   const isMock = !decryptedToken || !inst.whatsapp_phone_id || String(decryptedToken || '').startsWith('mock')
 
-  const { data: pending, error: pendErr } = await db
-    .from('notification_queue')
-    .select('*')
-    .eq('institute_id', instituteId)
-    .eq('status', 'PENDING')
-    .limit(50)
+  let q = db.from('notification_queue').select('*').eq('institute_id', instituteId)
+  if (targetId) {
+    q = q.eq('id', targetId)
+  } else {
+    q = q.eq('status', 'PENDING').limit(50)
+  }
+
+  const { data: pending, error: pendErr } = await q
 
   if (pendErr) throw new HttpError(500, pendErr.message)
   if (!pending || pending.length === 0) return json({ message: 'No pending alerts.' })
 
   let successCount = 0
   let failCount = 0
+  let lastMetaError = 'Failed to send message via Meta API'
+
   for (const notif of pending) {
     try {
       const payload = JSON.parse(notif.payload as string)
@@ -66,12 +98,13 @@ export const POST = handle(async () => {
         console.log(`[MOCK WHATSAPP SEND] To: ${notif.recipient}, Template: ${templateName}, Params:`, finalParams)
         success = true
       } else {
+        const cleanRecipient = notif.recipient.replace(/\D/g, '')
         const metaRes = await fetch(`https://graph.facebook.com/v19.0/${inst.whatsapp_phone_id}/messages`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${decryptedToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messaging_product: 'whatsapp',
-            to: notif.recipient,
+            to: cleanRecipient,
             type: 'template',
             template: { name: templateName, language: { code: 'en' }, components: [{ type: 'body', parameters: finalParams }] },
           }),
@@ -85,6 +118,7 @@ export const POST = handle(async () => {
           } catch {
             apiError = `HTTP error ${metaRes.status}`
           }
+          lastMetaError = apiError || 'Failed to send message via Meta API'
         }
       }
 
@@ -109,8 +143,14 @@ export const POST = handle(async () => {
         message_type: notif.type,
         error_message: e.message || 'Unknown catch error'
       })
+      lastMetaError = e.message || 'Unknown error'
       failCount++
     }
   }
+  
+  if (targetId && failCount > 0) {
+    throw new HttpError(400, lastMetaError)
+  }
+
   return json({ message: `Sent ${successCount} alerts. Failed: ${failCount}.` + (isMock ? ' (SIMULATED MODE)' : '') })
 })

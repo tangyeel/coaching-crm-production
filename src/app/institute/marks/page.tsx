@@ -38,6 +38,11 @@ export default function InstituteMarksPage() {
   const [sendingAlerts, setSendingAlerts] = useState(false)
   const [lastSentTime, setLastSentTime] = useState<number>(0)
 
+  // Console state
+  const [consoleVisible, setConsoleVisible] = useState(false)
+  const [consoleLogs, setConsoleLogs] = useState<string[]>([])
+  const [consoleProgress, setConsoleProgress] = useState({ current: 0, total: 0 })
+
   const [form, setForm] = useState({ name: '', batchId: '', total: '100', date: new Date().toISOString().slice(0, 10) })
 
   // 1. Load Batches
@@ -171,19 +176,67 @@ export default function InstituteMarksPage() {
       return
     }
     setLastSentTime(now)
+
+    let pendingList: any[] = []
     setSendingAlerts(true)
     try {
-      const res = await api('/api/notifications/send', { method: 'POST' })
-      if (res.message.includes('Failed:') && !res.message.includes('Failed: 0')) {
-        toast(`✘ ${res.message}`, 'err')
-      } else {
-        toast(`✔ ${res.message}`)
-      }
+      pendingList = await api('/api/notifications/send')
     } catch (err: any) {
       toast(err.message, 'err')
-    } finally {
       setSendingAlerts(false)
+      return
     }
+
+    if (pendingList.length === 0) {
+      toast('No pending alerts in queue to send.')
+      setSendingAlerts(false)
+      return
+    }
+
+    setConsoleLogs([
+      `[${new Date().toLocaleTimeString()}] Found ${pendingList.length} pending alerts in queue.`,
+      `[${new Date().toLocaleTimeString()}] Starting live dispatch...`
+    ])
+    setConsoleProgress({ current: 0, total: pendingList.length })
+    setConsoleVisible(true)
+
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < pendingList.length; i++) {
+      const item = pendingList[i]
+      const name = item.payload.studentName || 'Student'
+      
+      setConsoleLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Dispatching MARKS alert to ${item.recipient} (${name})…`
+      ])
+
+      try {
+        await api('/api/notifications/send', {
+          method: 'POST',
+          body: JSON.stringify({ id: item.id })
+        })
+        successCount++
+        setConsoleLogs(prev => [
+          ...prev,
+          `✔ SUCCESS: Alert delivered to ${item.recipient} (${name})`
+        ])
+      } catch (err: any) {
+        failCount++
+        setConsoleLogs(prev => [
+          ...prev,
+          `✘ FAILED: ${err.message || 'Meta API validation failure'}`
+        ])
+      }
+      setConsoleProgress(p => ({ ...p, current: i + 1 }))
+    }
+
+    setConsoleLogs(prev => [
+      ...prev,
+      `[${new Date().toLocaleTimeString()}] Dispatch complete. Sent: ${successCount}, Failed: ${failCount}.`
+    ])
+    setSendingAlerts(false)
   }
 
   const filtered = roster.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()))
@@ -303,6 +356,100 @@ export default function InstituteMarksPage() {
           </div>
         </div>
       </div>
+
+      {/* Live Dispatch Console Widget */}
+      {consoleVisible && (
+        <div 
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: 380,
+            background: 'var(--bg1)',
+            border: '1px solid var(--bdr)',
+            borderRadius: 12,
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Header */}
+          <div 
+            style={{ 
+              padding: '12px 16px', 
+              background: 'var(--bg2)', 
+              borderBottom: '1px solid var(--bdr)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <i className="fa-solid fa-terminal" style={{ fontSize: 12, color: 'var(--acc)' }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>WhatsApp Dispatch Console</span>
+            </div>
+            <button 
+              className="btn btn-ghost btn-sm" 
+              style={{ padding: 4, minWidth: 'auto', height: 'auto' }}
+              onClick={() => setConsoleVisible(false)}
+            >
+              <i className="fa-solid fa-xmark" style={{ fontSize: 14 }} />
+            </button>
+          </div>
+
+          {/* Progress Section */}
+          <div style={{ padding: 16, background: 'var(--bg1)', borderBottom: '1px solid var(--bdr)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 6 }}>
+              <span style={{ color: 'var(--t2)' }}>
+                Progress: {consoleProgress.current} / {consoleProgress.total} sent
+              </span>
+              <span style={{ fontWeight: 600, color: 'var(--acc)' }}>
+                {Math.round((consoleProgress.current / consoleProgress.total) * 100) || 0}%
+              </span>
+            </div>
+            <div style={{ width: '100%', height: 6, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
+              <div 
+                style={{ 
+                  width: `${(consoleProgress.current / consoleProgress.total) * 100}%`, 
+                  height: '100%', 
+                  background: 'var(--acc)',
+                  transition: 'width 0.2s ease'
+                }} 
+              />
+            </div>
+          </div>
+
+          {/* Logs Area */}
+          <div 
+            style={{ 
+              padding: 12, 
+              height: 200, 
+              background: '#0f172a', 
+              color: '#38bdf8', 
+              fontFamily: 'monospace', 
+              fontSize: 10,
+              lineHeight: 1.5,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4
+            }}
+          >
+            {consoleLogs.map((log, idx) => {
+              const isError = log.includes('✘ FAILED:')
+              const isSuccess = log.includes('✔ SUCCESS:')
+              const color = isError ? '#f87171' : isSuccess ? '#4ade80' : '#38bdf8'
+              return (
+                <div key={idx} style={{ color }}>
+                  {log}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

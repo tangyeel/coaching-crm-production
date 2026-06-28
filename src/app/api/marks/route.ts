@@ -62,27 +62,21 @@ export const POST = handle(async (req) => {
   if (studentIds.length > 0) {
     const { data: students } = await db
       .from('users_profile')
-      .select('id, name')
+      .select('id, name, phone, guardian_phone')
       .in('id', studentIds)
     
-    const { data: parents } = await db
-      .from('users_profile')
-      .select('id, phone, student_id')
-      .eq('role', 'PARENT')
-      .in('student_id', studentIds)
-
-    if (parents && parents.length > 0) {
+    if (students && students.length > 0) {
       const queueRows = []
       for (const m of input.marks) {
-        const student = (students ?? []).find(s => s.id === m.studentId)
+        const student = students.find(s => s.id === m.studentId)
         if (!student) continue
-        const parent = (parents ?? []).find(p => p.student_id === student.id)
-        if (!parent || !parent.phone) continue
+        const recipientPhone = student.guardian_phone || student.phone
+        if (!recipientPhone) continue
 
         const scoreStr = m.score.toUpperCase() === 'AB' ? 'AB' : m.score
         queueRows.push({
           institute_id: instituteId,
-          recipient: parent.phone,
+          recipient: recipientPhone,
           type: 'MARKS',
           payload: JSON.stringify({
             studentName: student.name,

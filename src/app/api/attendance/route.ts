@@ -68,24 +68,18 @@ export const POST = handle(async (req) => {
     const studentIds = absentStudents.map(s => s.studentId)
     const { data: students } = await db
       .from('users_profile')
-      .select('id, name')
+      .select('id, name, phone, guardian_phone')
       .in('id', studentIds)
     
-    const { data: parents } = await db
-      .from('users_profile')
-      .select('id, phone, student_id')
-      .eq('role', 'PARENT')
-      .in('student_id', studentIds)
-
-    if (parents && parents.length > 0) {
+    if (students && students.length > 0) {
       const queueRows = []
-      for (const student of (students ?? [])) {
-        const parent = (parents ?? []).find(p => p.student_id === student.id)
-        if (!parent || !parent.phone) continue
+      for (const student of students) {
+        const recipientPhone = student.guardian_phone || student.phone
+        if (!recipientPhone) continue
 
         queueRows.push({
           institute_id: instituteId,
-          recipient: parent.phone,
+          recipient: recipientPhone,
           type: 'ABSENT',
           payload: JSON.stringify({
             studentName: student.name,
