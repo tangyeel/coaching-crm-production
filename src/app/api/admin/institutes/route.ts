@@ -58,6 +58,7 @@ export const GET = handle(async () => {
       teachers: instProfiles.filter(p => p.role === 'TEACHER').length,
       revenue,
       messages: logs.filter(l => l.institute_id === i.id).length,
+      joinCode: i.join_code,
     }
   })
   

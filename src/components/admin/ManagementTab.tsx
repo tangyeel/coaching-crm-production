@@ -21,6 +21,7 @@ interface Institute {
   whatsappToken?: string
   whatsappPhoneId?: string
   messages?: number
+  joinCode?: string
 }
 
 interface ManagementTabProps {
@@ -192,6 +193,11 @@ export default function ManagementTab({
                         <td>
                           <div style={{ fontWeight: 500, color: 'var(--text-1)' }}>{i.name}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{i.email}</div>
+                          {i.joinCode && (
+                            <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>
+                              Code: <strong>{i.joinCode}</strong>
+                            </div>
+                          )}
                         </td>
                         <td>
                           <span className="badge badge-accent">{i.plan}</span>

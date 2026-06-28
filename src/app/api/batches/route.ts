@@ -9,7 +9,7 @@ export const GET = handle(async (req) => {
   const search = new URL(req.url).searchParams.get('search')?.trim() ?? ''
 
   const { data: batches, error } = await db.from('batches')
-    .select('id, name, subject, schedule, capacity, teacher_id, is_active, created_at, teacher:users_profile!teacher_id(name), students:batch_students(count)')
+    .select('id, name, subject, schedule, capacity, teacher_id, is_active, created_at, join_code, teacher:users_profile!teacher_id(name), students:batch_students(count)')
     .eq('institute_id', instituteId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -24,6 +24,7 @@ export const GET = handle(async (req) => {
     teacher_id: b.teacher_id,
     is_active: b.is_active,
     created_at: b.created_at,
+    join_code: b.join_code,
     teacher: b.teacher ? { user: { name: b.teacher.name } } : null,
     _count: { students: b.students?.[0]?.count ?? 0 },
   }))
