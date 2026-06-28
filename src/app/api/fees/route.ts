@@ -49,19 +49,86 @@ export const POST = handle(async (req) => {
     .eq('id', input.studentId).eq('institute_id', instituteId).single()
   if (!student) throw new HttpError(404, 'Student not found')
 
-  const { data: payment, error } = await db.from('fee_payments').insert({
-    student_id: input.studentId,
-    institute_id: instituteId,
-    amount: input.amount,
-    method: 'CASH',
-    note: input.note ?? null,
-    recorded_by_id: session.sub,
-  }).select().single()
-  if (error) throw new HttpError(500, error.message)
+  // Fetch student's unpaid invoices
+  const { data: openInvoices } = await db
+    .from('invoices')
+    .select('*')
+    .eq('student_id', input.studentId)
+    .eq('status', 'ISSUED')
+    .is('deleted_at', null)
+    .order('due_date', { ascending: true })
+
+  let remainingAmount = input.amount
+  const paymentsToInsert = []
+
+  if (openInvoices && openInvoices.length > 0) {
+    const openInvoiceIds = openInvoices.map(i => i.id)
+    const { data: existingPayments } = await db
+      .from('fee_payments')
+      .select('invoice_id, amount')
+      .in('invoice_id', openInvoiceIds)
+      .is('deleted_at', null)
+
+    const paidSum: Record<string, number> = {}
+    for (const ep of (existingPayments ?? [])) {
+      if (ep.invoice_id) {
+        paidSum[ep.invoice_id] = (paidSum[ep.invoice_id] ?? 0) + Number(ep.amount)
+      }
+    }
+
+    for (const inv of openInvoices) {
+      if (remainingAmount <= 0) break
+
+      const total = Number(inv.total_amount)
+      const alreadyPaid = paidSum[inv.id] || 0
+      const due = Math.max(0, total - alreadyPaid)
+
+      if (due <= 0) continue
+
+      const applyAmount = Math.min(remainingAmount, due)
+      remainingAmount -= applyAmount
+
+      paymentsToInsert.push({
+        student_id: input.studentId,
+        institute_id: instituteId,
+        amount: applyAmount,
+        method: 'CASH',
+        note: input.note ?? null,
+        recorded_by_id: session.sub,
+        invoice_id: inv.id,
+      })
+
+      if (alreadyPaid + applyAmount >= total) {
+        await db.from('invoices').update({ status: 'PAID' }).eq('id', inv.id)
+      }
+    }
+  }
+
+  // If there's still leftover amount or if no invoices were open, save as general payment
+  if (remainingAmount > 0 || paymentsToInsert.length === 0) {
+    paymentsToInsert.push({
+      student_id: input.studentId,
+      institute_id: instituteId,
+      amount: remainingAmount,
+      method: 'CASH',
+      note: input.note ?? null,
+      recorded_by_id: session.sub,
+      invoice_id: null,
+    })
+  }
+
+  const { data: inserted, error: payErr } = await db
+    .from('fee_payments')
+    .insert(paymentsToInsert)
+    .select()
+
+  if (payErr || !inserted || inserted.length === 0) {
+    throw new HttpError(500, payErr?.message || 'Failed to record fee payments')
+  }
 
   if (input.markPaid) {
     await db.from('users_profile').update({ fee_status: 'PAID' }).eq('id', input.studentId)
   }
 
-  return json(payment, 201)
+  return json(inserted[0], 201)
 })

@@ -19,6 +19,8 @@ interface Invoice {
   items_json: string
   created_at: string
   student: { user: { name: string } }
+  amount_paid: number
+  amount_due: number
 }
 
 export default function InstituteFeesPage() {
@@ -236,20 +238,28 @@ export default function InstituteFeesPage() {
             </thead>
             <tbody>
               {pagedInvoices.map(inv => {
-                const sb = statusBadge(inv.status === 'PAID' ? 'paid' : 'due')
                 return (
                   <tr key={inv.id}>
                     <td style={{ color: 'var(--t1)', fontWeight: 500 }}>{inv.student?.user?.name || 'Unknown student'}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--t1)' }}>Rs {fmt(inv.total_amount)}</td>
+                    <td style={{ color: 'var(--t1)' }}>
+                      {inv.amount_due === 0 ? (
+                        <span style={{ fontWeight: 600, color: 'var(--ok)' }}>Rs {fmt(inv.total_amount)} Paid</span>
+                      ) : (
+                        <>
+                          <span style={{ fontWeight: 600, color: 'var(--err)' }}>Rs {fmt(inv.amount_due)} Due</span>
+                          <div style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 400 }}>of Rs {fmt(inv.total_amount)}</div>
+                        </>
+                      )}
+                    </td>
                     <td style={{ fontSize: 12 }}>{new Date(inv.due_date).toLocaleDateString()}</td>
                     <td>
-                      <span className={'badge ' + sb.cls}>
+                      <span className={'badge ' + (inv.amount_due === 0 ? 'b-ok' : 'b-err')}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', marginRight: 4 }} />
-                        {sb.label}
+                        {inv.amount_due === 0 ? 'Paid' : 'Due'}
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      {inv.status === 'ISSUED' ? (
+                      {inv.amount_due > 0 ? (
                         <button className="btn btn-primary btn-sm" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => payInvoice(inv.id)}>
                           <i className="fa-solid fa-check mr-1" />Mark Paid
                         </button>

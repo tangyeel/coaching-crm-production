@@ -30,6 +30,7 @@ export default function InstituteBatchesPage() {
   const [modal, setModal] = useState(false)
   const [busy, setBusy] = useState(false)
   const [search, setSearch] = useState('')
+  const [editingBatch, setEditingBatch] = useState<Batch | null>(null)
 
   const [form, setForm] = useState({ name: '', subject: 'JEE Advanced', capacity: 40, teacherId: '', schedule: '' })
 
@@ -53,24 +54,51 @@ export default function InstituteBatchesPage() {
     load()
   }, [])
 
-  const create = async () => {
+  const startEdit = (b: Batch) => {
+    setEditingBatch(b)
+    setForm({
+      name: b.name,
+      subject: b.subject,
+      capacity: b.capacity,
+      teacherId: b.teacher_id || '',
+      schedule: b.schedule
+    })
+    setModal(true)
+  }
+
+  const save = async () => {
     if (!form.name.trim()) { toast('Enter name', 'err'); return }
     if (!form.subject.trim()) { toast('Enter subject', 'err'); return }
 
     setBusy(true)
     try {
-      await api('/api/batches', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: form.name,
-          subject: form.subject,
-          schedule: form.schedule,
-          capacity: Number(form.capacity),
-          teacherId: form.teacherId || undefined
+      if (editingBatch) {
+        await api(`/api/batches/${editingBatch.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: form.name,
+            subject: form.subject,
+            schedule: form.schedule,
+            capacity: Number(form.capacity),
+            teacherId: form.teacherId || null
+          })
         })
-      })
-      toast(`"${form.name}" created`)
+        toast(`"${form.name}" updated`)
+      } else {
+        await api('/api/batches', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: form.name,
+            subject: form.subject,
+            schedule: form.schedule,
+            capacity: Number(form.capacity),
+            teacherId: form.teacherId || undefined
+          })
+        })
+        toast(`"${form.name}" created`)
+      }
       setModal(false)
+      setEditingBatch(null)
       setForm({ name: '', subject: 'JEE Advanced', capacity: 40, teacherId: teachers[0]?.id || '', schedule: '' })
       load()
     } catch (err: any) {
@@ -140,6 +168,7 @@ export default function InstituteBatchesPage() {
                   <div className="cb"><div className="cf" style={{ width: pct + '%', background: col }} /></div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => startEdit(b)}><i className="fa-solid fa-pen" style={{ marginRight: 6 }} />Edit</button>
                   <button className="btn btn-danger btn-sm" style={{ flex: 1 }} onClick={() => removeBatch(b.id, b.name)}><i className="fa-solid fa-trash" style={{ marginRight: 6 }} />Delete</button>
                 </div>
               </div>
@@ -152,9 +181,11 @@ export default function InstituteBatchesPage() {
       )}
 
       <div className={'mo' + (modal ? ' open' : '')}>
-        <div className="mo-bd" onClick={() => setModal(false)} />
+        <div className="mo-bd" onClick={() => { setModal(false); setEditingBatch(null); }} />
         <div className="mo-box">
-          <h3 className="font-display" style={{ fontWeight: 600, fontSize: 18, marginBottom: 20, color: 'var(--t1)' }}>Create Batch</h3>
+          <h3 className="font-display" style={{ fontWeight: 600, fontSize: 18, marginBottom: 20, color: 'var(--t1)' }}>
+            {editingBatch ? 'Edit Batch' : 'Create Batch'}
+          </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div><label className="fl">Name</label><input className="fi" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -172,7 +203,9 @@ export default function InstituteBatchesPage() {
               </select>
             </div>
             <div><label className="fl">Schedule</label><input className="fi" placeholder="Mon/Wed/Fri 4-6 PM" value={form.schedule} onChange={e => setForm(p => ({ ...p, schedule: e.target.value }))} /></div>
-            <button className="btn btn-primary w-full" disabled={busy} onClick={create}>{busy ? 'Creating...' : 'Create'}</button>
+            <button className="btn btn-primary w-full" disabled={busy} onClick={save}>
+              {editingBatch ? (busy ? 'Saving...' : 'Save') : (busy ? 'Creating...' : 'Create')}
+            </button>
           </div>
         </div>
       </div>

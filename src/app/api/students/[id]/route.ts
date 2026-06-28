@@ -19,10 +19,17 @@ export const GET = handle(async (_req, { params }: { params: { id: string } }) =
   const student = await findStudent(params.id, instituteOf(session))
   const { data: bs } = await db.from('batch_students').select('batch_id').eq('student_id', params.id)
   const batchIds = (bs ?? []).map(b => b.batch_id)
-  const { data: batches } = batchIds.length
-    ? await db.from('batches').select('id, name, subject').in('id', batchIds)
-    : { data: [] }
-  return json({ ...student, enrollments: (batches ?? []).map(b => ({ batch: b })) })
+  const [batchesRes, attendanceRes, marksRes] = await Promise.all([
+    batchIds.length ? db.from('batches').select('id, name, subject').in('id', batchIds) : Promise.resolve({ data: [] }),
+    db.from('attendance').select('date, status, batch:batches(name)').eq('student_id', params.id).is('deleted_at', null).order('date', { ascending: false }).limit(200),
+    db.from('marks').select('score, exam:exams(name, max_marks, date, batch:batches(name))').eq('student_id', params.id).is('deleted_at', null).limit(200)
+  ])
+  return json({
+    ...student,
+    enrollments: (batchesRes.data ?? []).map(b => ({ batch: b })),
+    attendance: attendanceRes.data ?? [],
+    marks: marksRes.data ?? []
+  })
 })
 
 const patchSchema = z.object({

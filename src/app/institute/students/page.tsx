@@ -30,6 +30,10 @@ export default function InstituteStudentsPage() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [logModal, setLogModal] = useState(false)
+  const [selectedStudentLogs, setSelectedStudentLogs] = useState<any>(null)
+  const [loadingLogs, setLoadingLogs] = useState(false)
+  const [activeTab, setActiveTab] = useState<'attendance' | 'marks'>('attendance')
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', batchId: '', password: 'student123' })
   const perPage = 10
@@ -82,6 +86,20 @@ export default function InstituteStudentsPage() {
       load()
     } catch (err: any) {
       toast(err.message, 'err')
+    }
+  }
+
+  const showLogs = async (student: Student) => {
+    setLoadingLogs(true)
+    setSelectedStudentLogs({ name: student.name, attendance: [], marks: [] })
+    setLogModal(true)
+    try {
+      const res = await api(`/api/students/${student.id}`)
+      setSelectedStudentLogs(res)
+    } catch (err: any) {
+      toast(err.message, 'err')
+    } finally {
+      setLoadingLogs(false)
     }
   }
 
@@ -161,6 +179,7 @@ export default function InstituteStudentsPage() {
                     <td style={{ fontSize: 12 }}>{new Date(s.created_at).toLocaleDateString()}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-ghost btn-sm" title="View Logs" onClick={() => showLogs(s)}><i className="fa-solid fa-chart-simple" style={{ fontSize: 10 }} /></button>
                         <button className="btn btn-ghost btn-sm" onClick={() => toggleFee(s.id, s.fee_status)}><i className="fa-solid fa-indian-rupee-sign" style={{ fontSize: 10 }} /></button>
                         <button className="btn btn-danger btn-sm" onClick={() => remove(s.id, s.name)}><i className="fa-solid fa-trash" style={{ fontSize: 10 }} /></button>
                       </div>
@@ -186,6 +205,7 @@ export default function InstituteStudentsPage() {
       </div>
 
       {/* Modal */}
+      {/* Add Student Modal */}
       <div className={'mo' + (modal ? ' open' : '')}>
         <div className="mo-bd" onClick={() => setModal(false)} />
         <div className="mo-box">
@@ -210,6 +230,96 @@ export default function InstituteStudentsPage() {
             </div>
             <button className="btn btn-primary w-full" disabled={busy} onClick={addStudent}>{busy ? 'Adding...' : 'Add'}</button>
           </div>
+        </div>
+      </div>
+
+      {/* Log Modal */}
+      <div className={'mo' + (logModal ? ' open' : '')}>
+        <div className="mo-bd" onClick={() => { setLogModal(false); setSelectedStudentLogs(null); }} />
+        <div className="mo-box" style={{ maxWidth: 640 }}>
+          <h3 className="font-display" style={{ fontWeight: 600, fontSize: 18, marginBottom: 20, color: 'var(--t1)' }}>
+            Logs for {selectedStudentLogs?.name}
+          </h3>
+          
+          <div style={{ display: 'flex', gap: 12, borderBottom: '1px solid var(--bdr)', marginBottom: 16 }}>
+            <button 
+              className={'btn btn-sm ' + (activeTab === 'attendance' ? 'btn-primary' : 'btn-ghost')}
+              style={{ padding: '6px 12px', fontSize: 12 }}
+              onClick={() => setActiveTab('attendance')}
+            >
+              Attendance Log
+            </button>
+            <button 
+              className={'btn btn-sm ' + (activeTab === 'marks' ? 'btn-primary' : 'btn-ghost')}
+              style={{ padding: '6px 12px', fontSize: 12 }}
+              onClick={() => setActiveTab('marks')}
+            >
+              Marks Log
+            </button>
+          </div>
+
+          {loadingLogs ? (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--t3)' }}>Loading history...</div>
+          ) : (
+            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+              {activeTab === 'attendance' ? (
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Batch</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedStudentLogs?.attendance ?? []).map((att: any, idx: number) => (
+                      <tr key={idx}>
+                        <td>{new Date(att.date).toLocaleDateString()}</td>
+                        <td>{att.batch?.name || 'General'}</td>
+                        <td>
+                          <span className={'badge ' + (att.status === 'PRESENT' ? 'b-ok' : att.status === 'LATE' ? 'b-inf' : 'b-err')}>
+                            {att.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {(selectedStudentLogs?.attendance ?? []).length === 0 && (
+                      <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--t3)', padding: 16 }}>No attendance logs found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Exam</th>
+                      <th>Batch</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedStudentLogs?.marks ?? []).map((m: any, idx: number) => {
+                      const pct = typeof m.score === 'number' && m.exam?.max_marks ? Math.round((m.score / m.exam.max_marks) * 100) : 0
+                      return (
+                        <tr key={idx}>
+                          <td>{m.exam?.date ? new Date(m.exam.date).toLocaleDateString() : '—'}</td>
+                          <td>{m.exam?.name || '—'}</td>
+                          <td>{m.exam?.batch?.name || '—'}</td>
+                          <td style={{ fontWeight: 600 }}>
+                            {m.score === 'AB' ? 'Absent' : `${m.score} / ${m.exam?.max_marks} (${pct}%)`}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {(selectedStudentLogs?.marks ?? []).length === 0 && (
+                      <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--t3)', padding: 16 }}>No marks logs found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

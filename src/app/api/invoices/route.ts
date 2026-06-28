@@ -26,16 +26,45 @@ export const GET = handle(async () => {
   const { data: invoices, error } = await q
   if (error) throw new HttpError(500, error.message)
 
+  const invoiceIds = (invoices ?? []).map(i => i.id)
+  const { data: payments } = invoiceIds.length > 0
+    ? await db.from('fee_payments').select('invoice_id, amount').in('invoice_id', invoiceIds).is('deleted_at', null)
+    : { data: [] }
+
+  const paidAmounts: Record<string, number> = {}
+  for (const p of (payments ?? [])) {
+    if (p.invoice_id) {
+      paidAmounts[p.invoice_id] = (paidAmounts[p.invoice_id] ?? 0) + Number(p.amount)
+    }
+  }
+
   const studentIds = [...new Set((invoices ?? []).map(i => i.student_id))] as string[]
   const { data: profiles } = studentIds.length > 0
     ? await db.from('users_profile').select('id, name').in('id', studentIds).limit(200)
     : { data: [] }
 
-  return json((invoices ?? []).map(inv => ({
-    ...inv,
-    items: JSON.parse((inv.items_json as string) || '[]'),
-    student: { user: { name: (profiles ?? []).find(p => p.id === inv.student_id)?.name ?? '' } },
-  })))
+  const updatedInvoices = []
+  for (const inv of (invoices ?? [])) {
+    const amountPaid = paidAmounts[inv.id] || 0
+    const amountDue = Math.max(0, Number(inv.total_amount) - amountPaid)
+    let currentStatus = inv.status
+
+    if (amountDue === 0 && currentStatus !== 'PAID') {
+      await db.from('invoices').update({ status: 'PAID' }).eq('id', inv.id)
+      currentStatus = 'PAID'
+    }
+
+    updatedInvoices.push({
+      ...inv,
+      status: currentStatus,
+      amount_paid: amountPaid,
+      amount_due: amountDue,
+      items: JSON.parse((inv.items_json as string) || '[]'),
+      student: { user: { name: (profiles ?? []).find(p => p.id === inv.student_id)?.name ?? '' } },
+    })
+  }
+
+  return json(updatedInvoices)
 })
 
 const createSchema = z.object({
