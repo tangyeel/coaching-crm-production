@@ -1,0 +1,29 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *'  # Run every 3 days at midnight
+  workflow_dispatch:      # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ping Application Login
+        env:
+          APP_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "❌ Error: secrets.PRODUCTION_URL is not configured in your GitHub repository."
+            echo "Please go to Settings > Secrets and variables > Actions in your GitHub repository and add PRODUCTION_URL (e.g., https://coaching-crm-production.vercel.app)."
+            exit 1
+          fi
+          node scripts/keep-alive.js
