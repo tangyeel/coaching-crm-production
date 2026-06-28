@@ -37,29 +37,31 @@ export const POST = handle(async () => {
       if (notif.type === 'ABSENT') {
         templateName = 'attendance'
         finalParams = [
-          { type: 'text', text: payload.studentName },
-          { type: 'text', text: 'Absent' },
-          { type: 'text', text: payload.date },
+          { type: 'text', parameter_name: 'student_name', text: payload.studentName },
+          { type: 'text', parameter_name: 'status', text: 'Absent' },
+          { type: 'text', parameter_name: 'date', text: payload.date },
         ]
       } else if (notif.type === 'MARKS') {
         templateName = 'marks_update'
         const scoreStr = String(payload.score).toUpperCase()
         finalParams = [
-          { type: 'text', text: payload.studentName },
-          { type: 'text', text: scoreStr === 'AB' ? 'AB' : `${scoreStr}/${payload.maxMarks}` },
-          { type: 'text', text: payload.examName },
-          { type: 'text', text: payload.date || new Date().toLocaleDateString() },
+          { type: 'text', parameter_name: 'student_name', text: payload.studentName },
+          { type: 'text', parameter_name: 'marks', text: scoreStr === 'AB' ? 'AB' : `${scoreStr}/${payload.maxMarks}` },
+          { type: 'text', parameter_name: 'test_name', text: payload.examName },
+          { type: 'text', parameter_name: 'test_date', text: payload.date || new Date().toLocaleDateString() },
         ]
       } else if (notif.type === 'FEE_REMINDER') {
         templateName = 'fee_reminder'
         finalParams = [
-          { type: 'text', text: payload.studentName },
-          { type: 'text', text: String(payload.amount) },
-          { type: 'text', text: payload.dueDate },
+          { type: 'text', parameter_name: 'student_name', text: payload.studentName },
+          { type: 'text', parameter_name: 'amount', text: String(payload.amount) },
+          { type: 'text', parameter_name: 'due_date', text: payload.dueDate },
         ]
       }
 
       let success = false
+      let apiError: string | null = null
+
       if (isMock) {
         console.log(`[MOCK WHATSAPP SEND] To: ${notif.recipient}, Template: ${templateName}, Params:`, finalParams)
         success = true
@@ -74,7 +76,16 @@ export const POST = handle(async () => {
             template: { name: templateName, language: { code: 'en' }, components: [{ type: 'body', parameters: finalParams }] },
           }),
         })
+        
         success = metaRes.ok
+        if (!success) {
+          try {
+            const errData = await metaRes.json()
+            apiError = errData.error?.message || `HTTP error ${metaRes.status}`
+          } catch {
+            apiError = `HTTP error ${metaRes.status}`
+          }
+        }
       }
 
       const newStatus = success ? 'SENT' : 'FAILED'
@@ -85,7 +96,7 @@ export const POST = handle(async () => {
         recipient: notif.recipient,
         status: newStatus,
         message_type: notif.type,
-        error_message: success ? null : 'Failed to send message via Meta API'
+        error_message: success ? null : (apiError || 'Failed to send message via Meta API')
       })
 
       if (success) successCount++; else failCount++
